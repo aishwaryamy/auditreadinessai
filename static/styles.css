@@ -53,3 +53,23 @@ body {
   border: 1px solid #2f4370;
   font-size: 12px;
 }
+
+a { color: #9cc3ff; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.upload {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+button {
+  background: #2f6fed;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+button:hover { opacity: 0.9; }

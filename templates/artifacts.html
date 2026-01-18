@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="card">
+  <h2>Evidence Artifacts</h2>
+  <p class="muted">Upload evidence files (PDF/CSV/screenshots). Later: connect GitHub + GCP logs.</p>
+
+  <form class="upload" action="/artifacts/upload" method="post" enctype="multipart/form-data">
+    <input type="file" name="file" required />
+    <button type="submit">Upload</button>
+  </form>
+</section>
+
+<section class="card">
+  <h3>Saved artifacts</h3>
+
+  {% if artifacts|length == 0 %}
+    <p class="muted">No artifacts yet. Upload a file above.</p>
+  {% else %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Source</th>
+          <th>Name</th>
+          <th>Stored at</th>
+          <th>Collected</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in artifacts %}
+        <tr>
+          <td>{{ a.id }}</td>
+          <td><span class="pill">{{ a.source }}</span></td>
+          <td>{{ a.name }}</td>
+          <td class="muted">{{ a.uri }}</td>
+          <td class="muted">{{ a.collected_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</section>
+
+{% endblock %}
