@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="card">
+  <h2>Controls</h2>
+  <p class="muted">Seeded dataset (Phase 1). Next we’ll add evidence ingestion + readiness scores.</p>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Code</th>
+        <th>Title</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in controls %}
+      <tr>
+        <td>{{ c.category }}</td>
+        <td><span class="pill">{{ c.code }}</span></td>
+        <td>{{ c.title }}</td>
+        <td class="muted">{{ c.description }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</section>
+
+<section class="card">
+  <h2>Next steps (preview)</h2>
+  <ul>
+    <li>Add evidence artifacts (GitHub + uploads)</li>
+    <li>Compute readiness KPIs (coverage, freshness)</li>
+    <li>Move analytics into BigQuery + Looker dashboard</li>
+  </ul>
+</section>
+
+{% endblock %}
