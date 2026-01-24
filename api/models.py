@@ -38,3 +38,61 @@ class AgentRun(Base):
     finished_at = Column(DateTime(timezone=True), nullable=True)
 
     control = relationship("Control")
+
+from sqlalchemy import Boolean, Float
+
+class ChecklistItem(Base):
+    __tablename__ = "checklist_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    control_id = Column(Integer, ForeignKey("controls.id"), nullable=False)
+    text = Column(String(300), nullable=False)
+    required = Column(Boolean, default=True, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    control = relationship("Control")
+
+
+class ControlArtifactLink(Base):
+    __tablename__ = "control_artifact_links"
+
+    id = Column(Integer, primary_key=True, index=True)
+    control_id = Column(Integer, ForeignKey("controls.id"), nullable=False)
+    artifact_id = Column(Integer, ForeignKey("artifacts.id"), nullable=False)
+
+    linked_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    control = relationship("Control")
+    artifact = relationship("Artifact")
+
+
+class ControlScore(Base):
+    __tablename__ = "control_scores"
+
+    id = Column(Integer, primary_key=True, index=True)
+    control_id = Column(Integer, ForeignKey("controls.id"), nullable=False)
+
+    coverage_pct = Column(Float, nullable=False)
+    freshness_score = Column(Float, nullable=False)
+    source_credibility = Column(Float, nullable=False)
+    readiness_score = Column(Float, nullable=False)
+
+    computed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    control = relationship("Control")
+
+
+class Gap(Base):
+    __tablename__ = "gaps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    control_id = Column(Integer, ForeignKey("controls.id"), nullable=False)
+
+    severity = Column(String(20), nullable=False)  # Low/Med/High
+    reason = Column(String(300), nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    control = relationship("Control")

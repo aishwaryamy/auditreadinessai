@@ -20,7 +20,7 @@
       <tr>
         <td>{{ c.category }}</td>
         <td><span class="pill">{{ c.code }}</span></td>
-        <td>{{ c.title }}</td>
+        <td><a href="/controls/{{ c.id }}">{{ c.title }}</a></td>
         <td class="muted">{{ c.description }}</td>
       </tr>
       {% endfor %}

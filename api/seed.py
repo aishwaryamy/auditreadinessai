@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from .db import SessionLocal, engine
-from .models import Control, Base
+from .models import Base, Control, ChecklistItem
 
 
 SEED_CONTROLS = [
@@ -36,12 +36,57 @@ SEED_CONTROLS = [
     },
 ]
 
+SEED_CHECKLIST = {
+    "CC6.1": [
+        "Evidence of MFA enforcement (export/screenshot/config report)",
+        "List of users/groups covered by MFA policy",
+        "Date range of evidence within last 90 days",
+    ],
+    "CC6.2": [
+        "Documented onboarding/offboarding procedure",
+        "Recent example of access granted with approval",
+        "Recent example of access removed after termination/change",
+    ],
+    "CC6.3": [
+        "Access review report/export for last quarter",
+        "List of reviewers and approvals/sign-off",
+        "Remediation actions documented for exceptions",
+    ],
+    "CC8.1": [
+        "Branch protection or PR review settings (repo config evidence)",
+        "Sample PRs showing reviews before merge (last 90 days)",
+        "Evidence of required reviewers/CODEOWNERS (if used)",
+    ],
+    "CC8.2": [
+        "Deployment or change log with timestamps (last 90 days)",
+        "Evidence of who deployed/approved changes",
+        "Link between deploys and PRs/releases (if available)",
+    ],
+}
+
 
 def seed_controls(db: Session) -> None:
     for item in SEED_CONTROLS:
         exists = db.query(Control).filter(Control.code == item["code"]).first()
         if not exists:
             db.add(Control(**item))
+    db.commit()
+
+
+def seed_checklist_items(db: Session) -> None:
+    for control in db.query(Control).all():
+        items = SEED_CHECKLIST.get(control.code, [])
+        for text in items:
+            exists = (
+                db.query(ChecklistItem)
+                .filter(
+                    ChecklistItem.control_id == control.id,
+                    ChecklistItem.text == text,
+                )
+                .first()
+            )
+            if not exists:
+                db.add(ChecklistItem(control_id=control.id, text=text, required=True))
     db.commit()
 
 
@@ -52,7 +97,8 @@ def main() -> None:
     db = SessionLocal()
     try:
         seed_controls(db)
-        print("Seed complete: controls inserted/verified.")
+        seed_checklist_items(db)
+        print("Seed complete: controls + checklist inserted/verified.")
     finally:
         db.close()
 

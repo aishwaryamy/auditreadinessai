@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="card">
+  <p><a href="/">← Back to Controls</a> | <a href="/artifacts">Evidence Artifacts →</a></p>
+  <h2>{{ control.code }} — {{ control.title }}</h2>
+  <p class="muted">{{ control.description }}</p>
+  <p><span class="pill">{{ control.category }}</span></p>
+</section>
+
+<section class="card">
+  <h3>Checklist</h3>
+  <ul>
+    {% for item in checklist %}
+      <li>{{ item.text }}</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="card">
+  <h3>Linked evidence</h3>
+
+  {% if linked|length == 0 %}
+    <p class="muted">No evidence linked yet.</p>
+  {% else %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Artifact ID</th>
+          <th>Source</th>
+          <th>Name</th>
+          <th>Collected</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in linked %}
+        <tr>
+          <td>{{ a.id }}</td>
+          <td><span class="pill">{{ a.source }}</span></td>
+          <td>{{ a.name }}</td>
+          <td class="muted">{{ a.collected_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <hr style="border-color:#1f2a44; margin:16px 0;" />
+
+  <h4>Link an artifact to this control</h4>
+  <form class="upload" action="/controls/{{ control.id }}/link-artifact" method="post">
+    <select name="artifact_id" required>
+      <option value="" disabled selected>Select an artifact</option>
+      {% for a in all_artifacts %}
+        <option value="{{ a.id }}">#{{ a.id }} — {{ a.source }} — {{ a.name }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Link</button>
+  </form>
+</section>
+
+<section class="card">
+  <h3>Readiness score</h3>
+
+  {% if latest_score %}
+    <p>
+      <strong>Readiness:</strong> {{ "%.1f"|format(latest_score.readiness_score) }} /
+      <strong>Coverage:</strong> {{ "%.1f"|format(latest_score.coverage_pct) }}% /
+      <strong>Freshness:</strong> {{ "%.1f"|format(latest_score.freshness_score) }} /
+      <strong>Source credibility:</strong> {{ "%.1f"|format(latest_score.source_credibility) }}
+    </p>
+    <p class="muted">Computed at: {{ latest_score.computed_at }}</p>
+  {% else %}
+    <p class="muted">No score computed yet.</p>
+  {% endif %}
+
+  <form class="upload" action="/controls/{{ control.id }}/compute-score" method="post">
+    <button type="submit">Compute readiness</button>
+  </form>
+</section>
+
+<section class="card">
+  <h3>Gaps</h3>
+  {% if gaps|length == 0 %}
+    <p class="muted">No gaps detected yet.</p>
+  {% else %}
+    <ul>
+      {% for g in gaps %}
+        <li><strong>{{ g.severity }}:</strong> {{ g.reason }} <span class="muted">({{ g.created_at }})</span></li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>
+
+{% endblock %}

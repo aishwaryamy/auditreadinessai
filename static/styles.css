@@ -73,3 +73,11 @@ button {
   cursor: pointer;
 }
 button:hover { opacity: 0.9; }
+
+select {
+  background: #0b0f19;
+  color: #e8eefc;
+  border: 1px solid #1f2a44;
+  padding: 8px 10px;
+  border-radius: 10px;
+}
