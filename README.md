@@ -14,3 +14,7 @@ This project includes an offline evaluation harness for evidence retrieval quali
 - **MRR** (Mean Reciprocal Rank): how early the first relevant artifact appears
 
 ### Current results (initial labeled set)
+
+### Updated results (expanded labeled set)
+**Interpretation:** High **Recall@10** and **MRR** indicate relevant evidence appears very early in the ranking for each control. **Precision@5 = 0.52** means ~2–3 of the top 5 retrieved artifacts are relevant on average.
+
