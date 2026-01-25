@@ -15,7 +15,26 @@
 </section>
 
 <section class="card">
-  <div style="white-space: pre-wrap; line-height: 1.4;">{{ report }}</div>
+  <div style="display:flex; justify-content: space-between; align-items:center; gap:12px;">
+    <h3 style="margin:0;">Report</h3>
+    <button type="button" onclick="copyReport()">Copy report</button>
+  </div>
+
+  <pre id="reportText" style="white-space: pre-wrap; line-height: 1.4; margin-top: 12px;">{{ report }}</pre>
+
+  <p id="copyStatus" class="muted" style="margin-top:10px;"></p>
 </section>
+
+<script>
+  function copyReport() {
+    const text = document.getElementById("reportText").innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      document.getElementById("copyStatus").innerText = "Copied to clipboard ✅";
+      setTimeout(() => document.getElementById("copyStatus").innerText = "", 2000);
+    }).catch(() => {
+      document.getElementById("copyStatus").innerText = "Copy failed. Try selecting text manually.";
+    });
+  }
+</script>
 
 {% endblock %}

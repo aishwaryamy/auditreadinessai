@@ -1,4 +1,4 @@
-# api/agent_report.py
+ # api/agent_report.py
 
 import os
 from dotenv import load_dotenv
@@ -18,6 +18,7 @@ def _build_prompt(control, checklist_items, artifacts_with_snippets):
     for a, snippets in artifacts_with_snippets:
         joined = "\n\n".join([f"Snippet {i+1}: {s}" for i, s in enumerate(snippets)])
         evidence_blocks.append(f"[Artifact {a.id}] name={a.name} source={a.source}\n{joined}")
+
     evidence_text = "\n\n".join(evidence_blocks) if evidence_blocks else "(No evidence snippets available.)"
 
     return f"""
@@ -48,10 +49,41 @@ Write the report with these sections:
 """.strip()
 
 
+def _pick_best_artifacts_for_item(item_text: str, artifacts_with_snippets, top_n: int = 2):
+    """
+    Deterministic scoring:
+    - +2 if item keywords appear in artifact name
+    - +1 if keywords appear in snippet text
+    """
+    keywords = [
+        w.lower()
+        for w in item_text.replace("/", " ").replace("(", " ").replace(")", " ").split()
+        if len(w) >= 4
+    ]
+
+    scored = []
+    for a, snippets in artifacts_with_snippets:
+        hay_name = (a.name or "").lower()
+        hay_text = "\n".join(snippets).lower()
+
+        score = 0
+        for kw in keywords:
+            if kw in hay_name:
+                score += 2
+            if kw in hay_text:
+                score += 1
+
+        scored.append((score, a.id))
+
+    scored.sort(reverse=True)  # highest score first
+    best = [aid for score, aid in scored if score > 0][:top_n]
+    return best
+
+
 def _fallback_report(control, checklist_items, artifacts_with_snippets) -> str:
     """
-    Deterministic fallback when LLM call fails (no quota / billing / etc.).
-    Still demonstrates "agentic" behavior: retrieve evidence + map to checklist.
+    Deterministic fallback when LLM call fails (no quota/billing/etc.).
+    Still shows "agentic" behavior: retrieve evidence + map to checklist.
     """
     lines = []
     lines.append("1) Summary")
@@ -66,12 +98,17 @@ def _fallback_report(control, checklist_items, artifacts_with_snippets) -> str:
     if not checklist_items:
         lines.append("- (No checklist items found)")
     else:
-        top_citations = ", ".join([f"[Artifact {a.id}]" for a, _ in artifacts_with_snippets[:3]]) if artifacts_with_snippets else "(none)"
         for it in checklist_items:
-            if artifacts_with_snippets:
-                lines.append(f"- {it.text} — Candidate evidence: {top_citations}")
-            else:
+            if not artifacts_with_snippets:
                 lines.append(f"- {it.text} — Missing evidence")
+                continue
+
+            best_ids = _pick_best_artifacts_for_item(it.text, artifacts_with_snippets, top_n=2)
+            if best_ids:
+                citations = ", ".join([f"[Artifact {aid}]" for aid in best_ids])
+                lines.append(f"- {it.text} — Candidate evidence: {citations}")
+            else:
+                lines.append(f"- {it.text} — Missing evidence (no strong match found in retrieved snippets)")
 
     lines.append("")
     lines.append("3) Gaps / Missing evidence")
@@ -88,6 +125,7 @@ def _fallback_report(control, checklist_items, artifacts_with_snippets) -> str:
     lines.append("- Re-run retrieval evaluation after adding more labeled pairs.")
 
     return "\n".join(lines)
+
 
 def generate_control_report(control_id: int, k_artifacts: int = 5, snippets_per_artifact: int = 2):
     """
