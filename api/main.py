@@ -1,15 +1,31 @@
+# api/main.py
+
+import os
 from datetime import datetime, timezone
+
 from fastapi import FastAPI, Request, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-import os
-from datetime import datetime
-
 from .db import SessionLocal, engine
-from .models import Base, Control, Artifact, ChecklistItem, ControlArtifactLink, ControlScore, Gap
+from .models import (
+    Base,
+    Control,
+    Artifact,
+    ChecklistItem,
+    ControlArtifactLink,
+    ControlScore,
+    Gap,
+    ArtifactChunk,
+)
+from .indexing import read_text_from_file, chunk_text
+from .agent_report import generate_control_report
 
+
+# ----------------------------
+# App + Startup Setup
+# ----------------------------
 app = FastAPI(title="AuditReadinessAI")
 
 Base.metadata.create_all(bind=engine)
@@ -21,6 +37,55 @@ UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
+# ----------------------------
+# Utility: Scoring
+# ----------------------------
+def compute_scores(linked_artifacts, checklist_count: int):
+    # Coverage
+    if checklist_count <= 0:
+        coverage_pct = 0.0
+    else:
+        coverage_pct = min(100.0, (len(linked_artifacts) / checklist_count) * 100.0)
+
+    # Freshness
+    freshness_score = 0.0
+    if linked_artifacts:
+        # Find newest collected_at
+        newest = max(
+            (a.collected_at for a in linked_artifacts if a.collected_at is not None),
+            default=None,
+        )
+        if newest is not None:
+            # Make both naive to avoid SQLite tz issues
+            now = datetime.utcnow()
+            newest_naive = newest.replace(tzinfo=None) if newest.tzinfo is not None else newest
+            age_days = (now - newest_naive).days
+
+            if age_days <= 90:
+                freshness_score = 100.0
+            elif age_days <= 180:
+                freshness_score = 50.0
+            else:
+                freshness_score = 0.0
+
+    # Source credibility
+    if not linked_artifacts:
+        source_credibility = 0.0
+    else:
+        weights = []
+        for a in linked_artifacts:
+            # You can later add more sources (gcp/github/slack etc.)
+            weights.append(1.0 if a.source == "github" else 0.7)
+        source_credibility = (sum(weights) / len(weights)) * 100.0
+
+    # Final readiness score (weighted)
+    readiness_score = 0.5 * coverage_pct + 0.3 * freshness_score + 0.2 * source_credibility
+    return coverage_pct, freshness_score, source_credibility, readiness_score
+
+
+# ----------------------------
+# Health + Home
+# ----------------------------
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -39,6 +104,9 @@ def home(request: Request):
         db.close()
 
 
+# ----------------------------
+# Artifacts
+# ----------------------------
 @app.get("/artifacts", response_class=HTMLResponse)
 def artifacts_page(request: Request):
     db = SessionLocal()
@@ -59,7 +127,7 @@ async def upload_artifact(
 ):
     # Save file locally
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    safe_name = file.filename.replace("/", "_").replace("\\", "_")
+    safe_name = (file.filename or "upload").replace("/", "_").replace("\\", "_")
     saved_name = f"{ts}_{safe_name}"
     save_path = os.path.join(UPLOAD_DIR, saved_name)
 
@@ -67,7 +135,7 @@ async def upload_artifact(
     with open(save_path, "wb") as f:
         f.write(contents)
 
-    # Store metadata in DB
+    # Store metadata in DB + index chunks
     db = SessionLocal()
     try:
         artifact = Artifact(
@@ -77,46 +145,25 @@ async def upload_artifact(
         )
         db.add(artifact)
         db.commit()
+        db.refresh(artifact)
+
+        # Index chunks (text only for now)
+        text = read_text_from_file(save_path)
+        chunks = chunk_text(text)
+
+        for i, ch in enumerate(chunks):
+            db.add(ArtifactChunk(artifact_id=artifact.id, chunk_index=i, text=ch))
+
+        db.commit()
     finally:
         db.close()
 
     return RedirectResponse(url="/artifacts", status_code=303)
 
-def compute_scores(linked_artifacts, checklist_count: int):
-    if checklist_count <= 0:
-        coverage_pct = 0.0
-    else:
-        coverage_pct = min(100.0, (len(linked_artifacts) / checklist_count) * 100.0)
 
-        freshness_score = 0.0
-    if linked_artifacts:
-        newest = max(a.collected_at for a in linked_artifacts if a.collected_at is not None)
-
-        # Make both datetimes "naive" (no timezone) so subtraction always works in SQLite
-        now = datetime.utcnow()
-        newest_naive = newest.replace(tzinfo=None) if newest.tzinfo is not None else newest
-
-        age_days = (now - newest_naive).days
-
-        if age_days <= 90:
-            freshness_score = 100.0
-        elif age_days <= 180:
-            freshness_score = 50.0
-        else:
-            freshness_score = 0.0
-
-    if not linked_artifacts:
-        source_credibility = 0.0
-    else:
-        weights = []
-        for a in linked_artifacts:
-            weights.append(1.0 if a.source == "github" else 0.7)
-        source_credibility = (sum(weights) / len(weights)) * 100.0
-
-    readiness_score = 0.5 * coverage_pct + 0.3 * freshness_score + 0.2 * source_credibility
-    return coverage_pct, freshness_score, source_credibility, readiness_score
-
-
+# ----------------------------
+# Controls
+# ----------------------------
 @app.get("/controls/{control_id}", response_class=HTMLResponse)
 def control_detail(request: Request, control_id: int):
     db = SessionLocal()
@@ -133,7 +180,10 @@ def control_detail(request: Request, control_id: int):
         )
 
         links = db.query(ControlArtifactLink).filter(ControlArtifactLink.control_id == control_id).all()
-        linked_artifacts = [db.query(Artifact).filter(Artifact.id == l.artifact_id).first() for l in links]
+        linked_artifacts = [
+            db.query(Artifact).filter(Artifact.id == l.artifact_id).first()
+            for l in links
+        ]
         linked_artifacts = [a for a in linked_artifacts if a is not None]
 
         all_artifacts = db.query(Artifact).order_by(Artifact.collected_at.desc()).all()
@@ -174,12 +224,16 @@ def link_artifact(control_id: int, artifact_id: int = Form(...)):
     try:
         exists = (
             db.query(ControlArtifactLink)
-            .filter(ControlArtifactLink.control_id == control_id, ControlArtifactLink.artifact_id == artifact_id)
+            .filter(
+                ControlArtifactLink.control_id == control_id,
+                ControlArtifactLink.artifact_id == artifact_id,
+            )
             .first()
         )
         if not exists:
             db.add(ControlArtifactLink(control_id=control_id, artifact_id=artifact_id))
             db.commit()
+
         return RedirectResponse(url=f"/controls/{control_id}", status_code=303)
     finally:
         db.close()
@@ -192,7 +246,10 @@ def compute_score(control_id: int):
         checklist_count = db.query(ChecklistItem).filter(ChecklistItem.control_id == control_id).count()
 
         links = db.query(ControlArtifactLink).filter(ControlArtifactLink.control_id == control_id).all()
-        linked_artifacts = [db.query(Artifact).filter(Artifact.id == l.artifact_id).first() for l in links]
+        linked_artifacts = [
+            db.query(Artifact).filter(Artifact.id == l.artifact_id).first()
+            for l in links
+        ]
         linked_artifacts = [a for a in linked_artifacts if a is not None]
 
         coverage_pct, freshness_score, source_credibility, readiness_score = compute_scores(
@@ -209,6 +266,13 @@ def compute_score(control_id: int):
             )
         )
 
+        # Resolve previous unresolved gaps for this control (avoid duplicates)
+        db.query(Gap).filter(
+            Gap.control_id == control_id,
+            Gap.resolved_at.is_(None),
+        ).update({Gap.resolved_at: datetime.now(timezone.utc).replace(tzinfo=None)})
+
+        # Add current gaps (based on latest computed state)
         if coverage_pct < 100.0:
             db.add(Gap(control_id=control_id, severity="High", reason="Missing evidence: coverage below 100%"))
         if freshness_score < 100.0:
@@ -220,3 +284,26 @@ def compute_score(control_id: int):
         return RedirectResponse(url=f"/controls/{control_id}", status_code=303)
     finally:
         db.close()
+
+
+# ----------------------------
+# Agent Report (OpenAI)
+# ----------------------------
+@app.post("/controls/{control_id}/agent-report", response_class=HTMLResponse)
+def agent_report(control_id: int, request: Request):
+    db = SessionLocal()
+    try:
+        control = db.query(Control).filter(Control.id == control_id).first()
+        if not control:
+            return HTMLResponse("Control not found", status_code=404)
+
+        report, mode = generate_control_report(control_id)
+
+        return templates.TemplateResponse(
+            "agent_report.html",
+            {"request": request, "control": control, "report": report, "mode": mode},
+        )
+    finally:
+        db.close()
+
+

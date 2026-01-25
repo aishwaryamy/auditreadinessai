@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="card">
+  <p><a href="/controls/{{ control.id }}">← Back to control</a></p>
+  <h2>Agent Report: {{ control.code }} — {{ control.title }}</h2>
+
+  {% if mode == "openai" %}
+    <p class="pill" style="display:inline-block;">✅ Generated with OpenAI</p>
+  {% else %}
+    <p class="pill" style="display:inline-block;">⚠️ LLM unavailable — showing deterministic fallback</p>
+  {% endif %}
+
+  <p class="muted" style="margin-top:10px;">Grounded narrative generated from retrieved evidence snippets.</p>
+</section>
+
+<section class="card">
+  <div style="white-space: pre-wrap; line-height: 1.4;">{{ report }}</div>
+</section>
+
+{% endblock %}

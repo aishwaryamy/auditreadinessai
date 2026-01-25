@@ -89,20 +89,22 @@ def _fallback_report(control, checklist_items, artifacts_with_snippets) -> str:
 
     return "\n".join(lines)
 
-
-def generate_control_report(control_id: int, k_artifacts: int = 5, snippets_per_artifact: int = 2) -> str:
+def generate_control_report(control_id: int, k_artifacts: int = 5, snippets_per_artifact: int = 2):
+    """
+    Returns: (report_text, mode)
+      mode = "openai" or "fallback"
+    """
     model = os.getenv("OPENAI_MODEL", "gpt-5.2")
-    client = OpenAI()  # reads OPENAI_API_KEY from env automatically
+    client = OpenAI()
 
     db = SessionLocal()
     try:
         control = db.query(Control).filter(Control.id == control_id).first()
         if not control:
-            return "Control not found."
+            return "Control not found.", "fallback"
 
         checklist_items = db.query(ChecklistItem).filter(ChecklistItem.control_id == control_id).all()
 
-        # Retrieve top artifacts (hybrid)
         artifact_ids = hybrid_retrieve(control_id, k=k_artifacts)
 
         artifacts_with_snippets = []
@@ -118,20 +120,16 @@ def generate_control_report(control_id: int, k_artifacts: int = 5, snippets_per_
                 .limit(snippets_per_artifact)
                 .all()
             )
-            snippets = [c.text[:1200] for c in chunks]  # keep short
+            snippets = [c.text[:1200] for c in chunks]
             artifacts_with_snippets.append((a, snippets))
 
         prompt = _build_prompt(control, checklist_items, artifacts_with_snippets)
 
         try:
-            resp = client.responses.create(
-                model=model,
-                input=prompt,
-            )
-            return resp.output_text
+            resp = client.responses.create(model=model, input=prompt)
+            return resp.output_text, "openai"
         except Exception:
-            # Handles insufficient_quota, rate limits, missing billing, etc.
-            return _fallback_report(control, checklist_items, artifacts_with_snippets)
+            return _fallback_report(control, checklist_items, artifacts_with_snippets), "fallback"
 
     finally:
         db.close()
