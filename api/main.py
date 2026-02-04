@@ -1,6 +1,7 @@
 # api/main.py
 
 import os
+import traceback
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request, UploadFile, File, Form
@@ -21,6 +22,7 @@ from .models import (
 )
 from .indexing import read_text_from_file, chunk_text
 from .agent_report import generate_control_report
+from .seed import seed_controls, seed_checklist_items  # <-- make sure api/seed.py exists
 
 
 # ----------------------------
@@ -28,7 +30,38 @@ from .agent_report import generate_control_report
 # ----------------------------
 app = FastAPI(title="AuditReadinessAI")
 
-Base.metadata.create_all(bind=engine)
+
+@app.on_event("startup")
+def startup():
+    """
+    Cloud Run + Cloud SQL safe startup:
+    - Create tables when the app starts (not at import time)
+    - Seed controls/checklist only if empty
+    - Print real traceback to logs if DB init fails
+    """
+    try:
+        Base.metadata.create_all(bind=engine)
+
+        db = SessionLocal()
+        try:
+            # Seed only if this is a fresh DB (no controls yet)
+            if db.query(Control).count() == 0:
+                seed_controls(db)
+                seed_checklist_items(db)
+                print("✅ Seeded controls + checklist (fresh database).")
+            else:
+                print("✅ DB already seeded (controls exist).")
+        finally:
+            db.close()
+
+        print("✅ Startup complete: tables ensured.")
+
+    except Exception:
+        print("❌ DB init/seed failed during startup. Full traceback below:")
+        traceback.print_exc()
+        # Re-raise so Cloud Run knows startup failed (and logs show the root cause)
+        raise
+
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -50,13 +83,11 @@ def compute_scores(linked_artifacts, checklist_count: int):
     # Freshness
     freshness_score = 0.0
     if linked_artifacts:
-        # Find newest collected_at
         newest = max(
             (a.collected_at for a in linked_artifacts if a.collected_at is not None),
             default=None,
         )
         if newest is not None:
-            # Make both naive to avoid SQLite tz issues
             now = datetime.utcnow()
             newest_naive = newest.replace(tzinfo=None) if newest.tzinfo is not None else newest
             age_days = (now - newest_naive).days
@@ -74,11 +105,9 @@ def compute_scores(linked_artifacts, checklist_count: int):
     else:
         weights = []
         for a in linked_artifacts:
-            # You can later add more sources (gcp/github/slack etc.)
             weights.append(1.0 if a.source == "github" else 0.7)
         source_credibility = (sum(weights) / len(weights)) * 100.0
 
-    # Final readiness score (weighted)
     readiness_score = 0.5 * coverage_pct + 0.3 * freshness_score + 0.2 * source_credibility
     return coverage_pct, freshness_score, source_credibility, readiness_score
 
@@ -125,7 +154,6 @@ async def upload_artifact(
     file: UploadFile = File(...),
     source: str = Form("upload"),
 ):
-    # Save file locally
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     safe_name = (file.filename or "upload").replace("/", "_").replace("\\", "_")
     saved_name = f"{ts}_{safe_name}"
@@ -135,7 +163,6 @@ async def upload_artifact(
     with open(save_path, "wb") as f:
         f.write(contents)
 
-    # Store metadata in DB + index chunks
     db = SessionLocal()
     try:
         artifact = Artifact(
@@ -147,7 +174,6 @@ async def upload_artifact(
         db.commit()
         db.refresh(artifact)
 
-        # Index chunks (text only for now)
         text = read_text_from_file(save_path)
         chunks = chunk_text(text)
 
@@ -266,13 +292,11 @@ def compute_score(control_id: int):
             )
         )
 
-        # Resolve previous unresolved gaps for this control (avoid duplicates)
         db.query(Gap).filter(
             Gap.control_id == control_id,
             Gap.resolved_at.is_(None),
         ).update({Gap.resolved_at: datetime.now(timezone.utc).replace(tzinfo=None)})
 
-        # Add current gaps (based on latest computed state)
         if coverage_pct < 100.0:
             db.add(Gap(control_id=control_id, severity="High", reason="Missing evidence: coverage below 100%"))
         if freshness_score < 100.0:
@@ -305,5 +329,3 @@ def agent_report(control_id: int, request: Request):
         )
     finally:
         db.close()
-
-
