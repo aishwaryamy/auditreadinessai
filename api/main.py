@@ -1,5 +1,5 @@
 # api/main.py
-
+from google.cloud import storage
 import os
 import traceback
 from datetime import datetime, timezone
@@ -68,6 +68,19 @@ templates = Jinja2Templates(directory="templates")
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+def upload_bytes_to_gcs(filename: str, content: bytes) -> str:
+    bucket_name = os.getenv("GCS_BUCKET")
+    if not bucket_name:
+        raise RuntimeError("GCS_BUCKET env var is not set")
+
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+
+    blob = bucket.blob(filename)
+    blob.upload_from_string(content)
+
+    # Return a stable URI you can store in DB
+    return f"gs://{bucket_name}/{filename}"
 
 # ----------------------------
 # Utility: Scoring
@@ -166,24 +179,33 @@ async def upload_artifact(
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     safe_name = (file.filename or "upload").replace("/", "_").replace("\\", "_")
     saved_name = f"{ts}_{safe_name}"
-    save_path = os.path.join(UPLOAD_DIR, saved_name)
 
     contents = await file.read()
-    with open(save_path, "wb") as f:
-        f.write(contents)
 
+    # Upload to GCS (persistent)
+    gcs_uri = upload_bytes_to_gcs(saved_name, contents)
+
+    # Store metadata in DB + index chunks
     db = SessionLocal()
     try:
         artifact = Artifact(
             source=source,
             name=file.filename,
-            uri=save_path,
+            uri=gcs_uri,   # store GCS URI instead of local path
         )
         db.add(artifact)
         db.commit()
         db.refresh(artifact)
 
-        text = read_text_from_file(save_path)
+        # Index chunks: for now, index text from uploaded bytes
+        # If it's binary (PDF), your read_text_from_file won't work on bytes,
+        # so for now restrict to text uploads for indexing.
+        # We'll handle PDFs later if you want.
+        try:
+            text = contents.decode("utf-8", errors="ignore")
+        except Exception:
+            text = ""
+
         chunks = chunk_text(text)
 
         for i, ch in enumerate(chunks):
@@ -194,6 +216,7 @@ async def upload_artifact(
         db.close()
 
     return RedirectResponse(url="/artifacts", status_code=303)
+
 
 
 # ----------------------------
