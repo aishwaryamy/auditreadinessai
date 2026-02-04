@@ -9,9 +9,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from .db import SessionLocal, engine
+from .db import SessionLocal, engine, Base
 from .models import (
-    Base,
     Control,
     Artifact,
     ChecklistItem,
