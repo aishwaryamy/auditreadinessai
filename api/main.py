@@ -144,17 +144,6 @@ def home(request: Request):
     finally:
         db.close()
 
-@app.get("/debug/db")
-def debug_db():
-    url = os.getenv("DATABASE_URL", "")
-    cloudsql = os.getenv("CLOUDSQL_CONNECTION_NAME", "")
-    return {
-        "database_url_set": bool(url),
-        "cloudsql_connection_name_set": bool(cloudsql),
-        "db_name": os.getenv("DB_NAME", ""),
-        "db_user": os.getenv("DB_USER", ""),
-    }
-
 # ----------------------------
 # Artifacts
 # ----------------------------
