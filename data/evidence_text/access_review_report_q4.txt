@@ -1,0 +1,28 @@
+Quarterly Access Review Report — Q4 2025
+
+Control Objective:
+Review user access rights on a defined schedule and document outcomes.
+
+Period Reviewed:
+2025-10-01 to 2025-12-31
+
+Systems Reviewed:
+- GitHub Organization Members
+- GCP IAM privileged roles
+- Google Workspace admin roles
+
+Reviewers:
+- Security Lead (primary)
+- Engineering Manager (approver)
+
+Findings:
+- 2 inactive accounts removed from GitHub (date: 2025-11-15)
+- 1 over-privileged role adjusted in GCP (Editor -> Viewer) (date: 2025-12-02)
+- MFA confirmed for all privileged accounts
+
+Sign-off:
+- Reviewer: Security Lead, signed 2026-01-07
+- Approver: Engineering Manager, signed 2026-01-07
+
+Remediation Tracking:
+- Jira tickets created for each exception, all closed by 2026-01-10

@@ -1,7 +1,13 @@
+# venv + python
 .venv/
 __pycache__/
 *.pyc
+
+# local data / secrets
+uploads/
 *.db
-.DS_Store
 .env
 keys/
+
+# OS junk
+.DS_Store

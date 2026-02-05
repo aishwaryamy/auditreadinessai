@@ -1,0 +1,17 @@
+MFA Verification Audit Log (Sample)
+
+System: GCP Cloud Audit Logs
+Query: Authentication events where mfa_used = false
+Date Range: 2025-12-01 to 2026-01-20
+
+Result Summary:
+- Total login events checked: 312
+- MFA enforced events: 312
+- Non-MFA events: 0
+
+Sample Entries:
+- 2026-01-18T10:22:11Z user=j.smith@example.com action=login mfa_used=true ip=34.120.xx.xx
+- 2026-01-18T12:09:45Z user=a.mandya@example.com action=login mfa_used=true ip=35.211.xx.xx
+
+Reviewed by: Security Lead
+Reviewed on: 2026-01-21

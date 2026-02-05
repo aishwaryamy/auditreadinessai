@@ -1,0 +1,24 @@
+User Access Onboarding Procedure (SOP)
+
+Purpose:
+Grant access to systems based on role with approval and least privilege.
+
+Systems Covered:
+- Google Workspace
+- GitHub Organization
+- GCP IAM
+- Jira
+
+Process:
+1) Hiring manager submits access request ticket including role and required systems.
+2) IT/Security approves request (must include manager approval).
+3) Accounts are provisioned with role-based groups.
+4) MFA enforcement confirmed before granting admin privileges.
+5) Ticket is closed with timestamp and list of access granted.
+
+Evidence Retention:
+- Tickets retained for 1 year
+- Quarterly spot-check on a random sample of 5 onboardings
+
+Last updated: 2026-01-05
+Owner: IT + Security

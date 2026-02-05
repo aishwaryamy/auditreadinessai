@@ -1,0 +1,6 @@
+Quarterly Access Review - Q4
+Reviewed systems: GitHub, GCP IAM
+Reviewer: Security Lead
+Outcome: Removed 2 inactive accounts; confirmed MFA for admin group.
+Date: 2026-01-10
+Approvals: Engineering Manager approved.

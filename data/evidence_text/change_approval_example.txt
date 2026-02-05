@@ -1,0 +1,19 @@
+Change Approval Record (PR Review Evidence)
+
+Repository: auditreadinessai
+Branch Protection: enabled on main
+Required Reviews: 1 approving review before merge
+Direct pushes to main: blocked
+
+Sample Pull Request:
+PR #17 — "Fix readiness score timezone bug"
+- Author: a.mandya
+- Reviewer: j.smith (Approved)
+- Approval time: 2026-01-20 13:22 UTC
+- Merge time: 2026-01-20 13:40 UTC
+- Linked deploy: prod-1003
+
+Evidence:
+- PR approval recorded in GitHub UI
+- Merge commit hash: 7cc11d2
+- Deployment log references same commit

@@ -74,9 +74,14 @@
     <p class="muted">No score computed yet.</p>
   {% endif %}
 
-  <form class="upload" action="/controls/{{ control.id }}/compute-score" method="post">
+  <form action="/controls/{{ control.id }}/compute-score" method="post">
     <button type="submit">Compute readiness</button>
   </form>
+
+  <form action="/controls/{{ control.id }}/agent-report" method="post" style="margin-top: 12px;">
+    <button type="submit">Generate Audit Narrative (OpenAI)</button>
+  </form>
+
 </section>
 
 <section class="card">

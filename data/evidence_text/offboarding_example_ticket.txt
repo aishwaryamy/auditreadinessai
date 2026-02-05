@@ -1,0 +1,23 @@
+Offboarding / Deprovisioning Ticket Example (Redacted)
+
+Ticket ID: IT-2099
+Termination Date: 2026-01-15
+Employee: contractor2@example.com
+Role: Contractor (Engineering)
+
+Systems Removed:
+- Google Workspace account suspended
+- GitHub org membership removed
+- GCP IAM roles removed
+- VPN access revoked
+
+Timeline:
+- HR notice received: 2026-01-15 09:10
+- Access removed by IT: 2026-01-15 09:55
+- Verification by Security: 2026-01-15 10:10
+
+Evidence:
+- Screenshot: GitHub org member removal confirmation
+- Audit log export: IAM role removal entries
+
+Ticket closed: 2026-01-15 10:20

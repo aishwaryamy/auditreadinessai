@@ -1,0 +1,18 @@
+Production Deployment Log (Sample)
+
+System: CI/CD Pipeline (GitHub Actions)
+Environment: Production
+Date Range: 2026-01-01 to 2026-01-22
+
+Log Entries:
+- 2026-01-03 11:02 UTC deploy_id=prod-1001 actor=a.mandya commit=cb13a6f status=success
+- 2026-01-10 19:44 UTC deploy_id=prod-1002 actor=j.smith commit=1f2aa77 status=success
+- 2026-01-18 09:15 UTC deploy_id=prod-1003 actor=a.mandya commit=7cc11d2 status=success
+
+Controls:
+- Each deploy references a commit hash
+- Deploy actor recorded
+- Deploy time recorded
+
+Retention:
+Deployment logs retained for 12 months.

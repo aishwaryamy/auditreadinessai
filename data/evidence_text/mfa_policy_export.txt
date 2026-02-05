@@ -1,0 +1,18 @@
+MFA Enforcement Policy Export (GCP IAM)
+
+System: Google Cloud Platform (IAM)
+Policy Name: org-mfa-required
+Scope: Organization-wide (all users), exception group: breakglass-admins (2 accounts)
+
+Controls:
+- Enforce 2-step verification for all human users with console access
+- Require MFA for privileged roles (Owner, Editor, IAM Admin, Security Admin)
+
+Evidence:
+- Policy last updated: 2026-01-12
+- Effective date: 2026-01-12
+- Verified by: Security Lead (A. Mandya)
+- Review cadence: Quarterly
+
+Notes:
+- Breakglass accounts are stored in password manager and monitored via alerting.

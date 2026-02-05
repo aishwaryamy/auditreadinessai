@@ -1,0 +1,23 @@
+Access Grant Ticket Example (Redacted)
+
+Ticket ID: IT-2041
+Request Date: 2026-01-08
+Employee: newhire1@example.com
+Role: Data Analyst Intern
+
+Requested Access:
+- GitHub: read access to auditreadinessai repo
+- GCP: BigQuery Data Viewer on project auditreadinessai
+- Jira: access to SOC2 Compliance project board
+
+Approvals:
+- Manager Approval: yes (Engineering Manager) at 2026-01-08 14:12
+- Security Approval: yes (Security Lead) at 2026-01-08 15:05
+
+Provisioned:
+- Completed by IT: 2026-01-08 16:20
+- Groups assigned: bq-viewers, github-readers
+- MFA Verified: yes (enforced at login)
+
+Closure:
+Ticket closed: 2026-01-08 16:45

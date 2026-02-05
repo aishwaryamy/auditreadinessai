@@ -1,0 +1,5 @@
+Engineering Change Management Policy
+All production code changes require pull request review by at least 1 reviewer.
+Branch protection prevents direct pushes to main.
+CODEOWNERS required for sensitive directories.
+Date updated: 2026-01-05
