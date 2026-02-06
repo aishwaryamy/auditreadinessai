@@ -144,6 +144,17 @@ def home(request: Request):
     finally:
         db.close()
 
+@app.get("/debug/db")
+def debug_db():
+    return {
+        "database_url_set": bool(os.getenv("DATABASE_URL")),
+        "cloudsql_connection_name_set": bool(os.getenv("CLOUDSQL_CONNECTION_NAME")),
+        "db_name": os.getenv("DB_NAME", ""),
+        "db_user": os.getenv("DB_USER", ""),
+        "gcs_bucket": os.getenv("GCS_BUCKET", ""),
+        "openai_key_set": bool(os.getenv("OPENAI_API_KEY")),
+    }
+
 # ----------------------------
 # Artifacts
 # ----------------------------
