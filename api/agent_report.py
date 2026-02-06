@@ -6,7 +6,8 @@ from openai import OpenAI
 
 from .db import SessionLocal
 from .models import Control, ChecklistItem, ArtifactChunk, Artifact
-from .retrieval import hybrid_retrieve
+from .retrieval import hybrid_retrieve, keyword_retrieve
+
 
 load_dotenv()  # loads .env if present
 
@@ -144,6 +145,9 @@ def generate_control_report(control_id: int, k_artifacts: int = 5, snippets_per_
         checklist_items = db.query(ChecklistItem).filter(ChecklistItem.control_id == control_id).all()
 
         artifact_ids = hybrid_retrieve(control_id, k=k_artifacts)
+        if not artifact_ids:
+            artifact_ids = keyword_retrieve(control_id, k=k_artifacts)
+
 
         artifacts_with_snippets = []
         for aid in artifact_ids:

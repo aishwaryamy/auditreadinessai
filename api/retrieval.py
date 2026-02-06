@@ -5,7 +5,8 @@ from sentence_transformers import SentenceTransformer
 
 from .db import SessionLocal
 from .models import Control, ChecklistItem, Artifact, ArtifactChunk
-
+import os
+from typing import Optional
 
 def control_query_text(db, control_id: int) -> str:
     c = db.query(Control).filter(Control.id == control_id).first()
@@ -50,15 +51,36 @@ def keyword_retrieve(control_id: int, k: int = 10):
         db.close()
 
 
+# api/retrieval.py (snippet)
+
 _model = None
-def _get_model():
-    global _model
-    if _model is None:
-        _model = SentenceTransformer("all-MiniLM-L6-v2")
-    return _model
+_model_load_failed = False
+
+def _get_model() -> Optional["SentenceTransformer"]:
+    global _model, _model_load_failed
+    if _model is not None:
+        return _model
+    if _model_load_failed:
+        return None
+
+    try:
+        from sentence_transformers import SentenceTransformer
+        # Tip: set cache dir to writable path on Cloud Run
+        cache_dir = os.getenv("HF_HOME", "/tmp/hf")
+        os.makedirs(cache_dir, exist_ok=True)
+
+        _model = SentenceTransformer("all-MiniLM-L6-v2", cache_folder=cache_dir)
+        return _model
+    except Exception:
+        _model_load_failed = True
+        return None
+
 
 
 def embedding_retrieve(control_id: int, k: int = 10):
+    model = _get_model()
+    if model is None:
+        return [] 
     db = SessionLocal()
     try:
         query = control_query_text(db, control_id)
